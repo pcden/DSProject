@@ -18,15 +18,15 @@ st.set_page_config(page_title="Data Science Project | By Prasanna",
 
 # CREATING OPTION MENU
 with st.sidebar:
-    selected = option_menu(None, ["Home", "Extract and Transform", "View"],
+    selected = option_menu(None, ["Home", "Extract and Transform", "Get Insights"],
                            icons=["house-door-fill", "tools", "card-text"],
                            default_index=0,
                            orientation="vertical",
                            styles={"nav-link": {"font-size": "30px", "text-align": "centre", "margin": "0px",
-                                                "--hover-color": "#C80101"},
+                                                "--hover-color": "#4863A0"},
                                    "icon": {"font-size": "30px"},
                                    "container": {"max-width": "6000px"},
-                                   "nav-link-selected": {"background-color": "#C80101"}})
+                                   "nav-link-selected": {"background-color": "#4863A0"}})
 
 # Bridging a connection with MongoDB Atlas and Creating a new database(youtube_data)
 client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -200,20 +200,24 @@ if selected == "Extract and Transform":
 
                 comm_details = comments()
 
-                collections1 = db.channel_details
-                collections1.insert_many(ch_details)
+                if len(ch_details) > 0:
+                    collections1 = db.channel_details
+                    collections1.insert_many(ch_details)
 
-                collections2 = db.video_details
-                collections2.insert_many(vid_details)
+                if len(vid_details) > 0:
+                    collections2 = db.video_details
+                    collections2.insert_many(vid_details)
 
-                collections3 = db.comments_details
-                collections3.insert_many(comm_details)
+                if len(comm_details) > 0:
+                    collections3 = db.comments_details
+                    collections3.insert_many(comm_details)
+
                 st.success("Upload to MogoDB successful !!")
 
     # TRANSFORM TAB
     with tab2:
         st.markdown("#   ")
-        st.markdown("### Select a channel to begin Transformation to SQL")
+        st.markdown("### Select a channel to begin Transformation to MySQL")
 
         ch_names = channel_names()
         user_inp = st.selectbox("Select channel", options=ch_names)
@@ -226,16 +230,24 @@ if selected == "Extract and Transform":
             for i in collections.find({"Channel_name": user_inp}, {'_id': 0}):
                 mycursor.execute(query, tuple(i.values()))
                 mydb.commit()
+            return ""
 
 
         def insert_into_videos():
-            collectionss = db.video_details
-            query1 = """INSERT INTO videos VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+            err = "ok"
+            try:
+                collectionss = db.video_details
+                query1 = """INSERT INTO videos VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
 
-            for i in collectionss.find({"Channel_name": user_inp}, {"_id": 0}):
-                t = tuple(i.values())
-                mycursor.execute(query1, t)
-                mydb.commit()
+                for i in collectionss.find({"Channel_name": user_inp}, {"_id": 0, "Tags": 0}):
+                    t = tuple(i.values())
+                    mycursor.execute(query1, t)
+                    mydb.commit()
+            except sql.connector.Error as my_error:
+                print(my_error)  # Output error details.
+                err = my_error
+
+            return err
 
 
         def insert_into_comments():
@@ -248,20 +260,22 @@ if selected == "Extract and Transform":
                     t = tuple(i.values())
                     mycursor.execute(query2, t)
                     mydb.commit()
+            return ""
 
 
         if st.button("Submit"):
+            Vi = "a"
             try:
+                Ch = insert_into_channels()
+                Cm = insert_into_comments()
+                Vi = insert_into_videos()
 
-                insert_into_channels()
-                insert_into_videos()
-                insert_into_comments()
                 st.success("Transformation to MySQL Successful!!!")
             except:
                 st.error("Channel details already transformed!!")
 
 # VIEW PAGE
-if selected == "View":
+if selected == "Get Insights":
 
     st.write("## :orange[Select any question to get Insights]")
     questions = st.selectbox('Questions',
@@ -405,4 +419,3 @@ if selected == "View":
                      color=mycursor.column_names[0]
                      )
         st.plotly_chart(fig, use_container_width=True)
-
